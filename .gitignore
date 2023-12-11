@@ -2,3 +2,4 @@
 build
 stubs
 __pycache__
+compile_flags.txt
