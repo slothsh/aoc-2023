@@ -1,0 +1,62 @@
+{
+    "2023": {
+        "day1": [
+            {
+                "id": "main",
+                "path": "./inputs/day1.txt"
+            },
+            {
+                "id": "test1",
+                "path": "./inputs/day1.test.1.txt"
+            },
+            {
+                "id": "test2",
+                "path": "./inputs/day1.test.2.txt"
+            }
+        ],
+
+        "day2": [
+            {
+                "id": "main",
+                "path": "./inputs/day2.txt"
+            },
+            {
+                "id": "test1",
+                "path": "./inputs/day2.test.txt"
+            }
+        ],
+
+        "day3": [
+            {
+                "id": "main",
+                "path": "./inputs/day3.txt"
+            },
+            {
+                "id": "test1",
+                "path": "./inputs/day3.test.txt"
+            }
+        ],
+
+        "day4": [
+            {
+                "id": "main",
+                "path": "./inputs/day4.txt"
+            },
+            {
+                "id": "test1",
+                "path": "./inputs/day4.test.txt"
+            }
+        ],
+
+        "day5": [
+            {
+                "id": "main",
+                "path": "./inputs/day5.txt"
+            },
+            {
+                "id": "test1",
+                "path": "./inputs/day5.test.txt"
+            }
+        ]
+    }
+}
