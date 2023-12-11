@@ -33,22 +33,15 @@ struct AlmanacEntry {
     entry_type humidity;
     entry_type location;
 
-    AlmanacEntry(std::int64_t seed,
-                 std::int64_t soil,
-                 std::int64_t fertilizer,
-                 std::int64_t water,
-                 std::int64_t light,
-                 std::int64_t temperature,
-                 std::int64_t humidity,
-                 std::int64_t location)
+    AlmanacEntry(std::int64_t seed)
         : seed({seed, false})
-        , soil({soil, false})
-        , fertilizer({fertilizer, false})
-        , water({water, false})
-        , light({light, false})
-        , temperature({temperature, false})
-        , humidity({humidity, false})
-        , location({location, false})
+        , soil({0, false})
+        , fertilizer({0, false})
+        , water({0, false})
+        , light({0, false})
+        , temperature({0, false})
+        , humidity({0, false})
+        , location({0, false})
     {}
 
     auto operator[](std::size_t column) -> entry_type& {
@@ -93,6 +86,40 @@ struct SourceDestinationRange {
     std::int64_t range;
 };
 
+//       d       <- d = S_A - S_B
+//      / \
+//     |<->|
+//     v   v
+// |---A---|     <- S_A = o_A + l_A
+//     |---B---| <- S_B = o_B + l_B
+//
+// a   b  x
+// |---|--|      <- BX = d - b = (d - x) + (x - b)
+//     |--|---|                = x
+//     b     d
+//
+// where
+//     d = distance
+//     o = origin
+//     l = length
+//     S = size
+
+// d == 0 => Fig. A
+// d < 0 => Fig. B
+// d > 0 => Fig. C
+//
+// |---A---|
+// |---B---|
+// (Fig. A)
+//
+// |---A---|
+//           |---B---|
+// (Fig. B)
+//
+//           |---A---|
+// |---B---|
+// (Fig. C)
+
 auto check_range_bound_and_update_almanac(SourceDestinationRange const& range, std::vector<AlmanacEntry>& almanac, std::size_t const index) {
     for (auto& almanac_entry : almanac) {
         std::int64_t range_min = range.source_start;
@@ -117,7 +144,7 @@ auto parse_ids_singles(std::ranges::sized_range auto&& id_chunk, std::vector<Alm
 
     for (auto&& id_numbers : seeds_id_part) {
         for (auto const id : id_numbers) {
-            almanac.emplace_back(std::stoul(std::string{id.begin(), id.end()}), 0, 0, 0, 0, 0, 0, 0);
+            almanac.emplace_back(std::stoul(std::string{id.begin(), id.end()}));
         }
     }
 }
