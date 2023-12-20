@@ -2,14 +2,15 @@
 #include <cctype>
 #include <cstdint>
 #include <cmath>
+#include <cstdlib>
 #include <numeric>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <array>
 #include <utility>
+#include <list>
 #include <vector>
-#include <map>
 #include <ranges>
 #include <format>
 #include <fmt/core.h>
@@ -22,8 +23,86 @@ enum IDChunkType {
     Pair
 };
 
+struct AlmanacRange {
+    std::int64_t start;
+    std::int64_t length;
+    std::int64_t overlap;
+
+    static auto slices(AlmanacRange lhs, AlmanacRange rhs) -> std::array<AlmanacRange, 3> {
+        std::int64_t lhs_end = lhs.start + lhs.length;
+        std::int64_t rhs_end = rhs.start + rhs.length;
+
+        // |---A---|
+        //     |-x-B---|
+        //       ^
+        //       |______ = (s_A + l_A) - s_B
+        bool inner_right = lhs.start <= rhs.start && rhs.start < lhs_end && lhs_end <= rhs_end;
+
+        //     |---A---|
+        // |---B-x-|
+        //       ^
+        //       |______ = (s_B + l_B) - s_A
+        bool inner_left = rhs.start <= lhs.start && lhs.start < rhs_end && rhs_end <= lhs_end;
+
+        // |---A---|
+        //  |--B--|
+        //     ^
+        //     |________ = l_B
+        bool all_of = lhs.start < rhs.start && rhs_end < lhs_end;
+
+        //  |--A--|
+        // |---B---|
+        //     ^
+        //     |________ = l_A
+        bool some_of = rhs.start < lhs.start && lhs_end < rhs_end;
+
+        //         |--A--|
+        // |---B---|
+        //
+        // OR
+        //
+        // |--A--|
+        //       |---B---|
+        // bool none = lhs.start >= rhs_end || lhs_end <= rhs.start;
+
+
+        // TODO: Better way to express this logic?
+        if (inner_right) {
+            return {
+                AlmanacRange{ lhs.start, rhs.start - lhs.start, 0 },
+                AlmanacRange{ rhs.start, lhs_end - rhs.start, lhs_end - rhs.start },
+                AlmanacRange{ 0, 0, 0 },
+            };
+        } else if (inner_left) {
+            return {
+                AlmanacRange{ 0, 0, 0 },
+                AlmanacRange{ lhs.start, rhs_end - lhs.start, rhs_end - lhs.start },
+                AlmanacRange{ rhs_end, lhs_end - rhs_end, lhs_end - rhs_end }
+            };
+        } else if (all_of) {
+            return {
+                AlmanacRange{ lhs.start, lhs.start - rhs.start, 0 },
+                AlmanacRange{ rhs.start, rhs.length, rhs.length },
+                AlmanacRange{ rhs_end, lhs_end - rhs_end, 0 }
+            };
+        } else if (some_of) {
+            return {
+                AlmanacRange{ 0, 0, 0 },
+                AlmanacRange{ lhs.start, lhs.length, lhs.length },
+                AlmanacRange{ 0, 0, 0 }
+            };
+        }
+
+        return {
+            AlmanacRange{ 0, 0, 0 },
+            AlmanacRange{ lhs.start, lhs.length, 0 },
+            AlmanacRange{ 0, 0, 0 }
+        };
+    }
+};
+
 struct AlmanacEntry {
-    using entry_type = std::pair<std::int64_t, bool>;
+    using entry_type = std::pair<AlmanacRange, bool>;
     entry_type seed;
     entry_type soil;
     entry_type fertilizer;
@@ -33,16 +112,31 @@ struct AlmanacEntry {
     entry_type humidity;
     entry_type location;
 
-    AlmanacEntry(std::int64_t seed)
-        : seed({seed, false})
-        , soil({0, false})
-        , fertilizer({0, false})
-        , water({0, false})
-        , light({0, false})
-        , temperature({0, false})
-        , humidity({0, false})
-        , location({0, false})
+    AlmanacEntry(AlmanacRange const& seed)
+        : seed({seed, true})
+        , soil({{}, false})
+        , fertilizer({{}, false})
+        , water({{}, false})
+        , light({{}, false})
+        , temperature({{}, false})
+        , humidity({{}, false})
+        , location({{}, false})
     {}
+
+    explicit AlmanacEntry(AlmanacEntry const& almanac_entry, std::size_t index, std::int64_t length, std::int64_t offset)
+        : seed({{}, false})
+        , soil({{}, false})
+        , fertilizer({{}, false})
+        , water({{}, false})
+        , light({{}, false})
+        , temperature({{}, false})
+        , humidity({{}, false})
+        , location({{}, false})
+    {
+        for (std::size_t j = 0; j <= index; ++j) {
+            this->set(j, { almanac_entry.value(j).start + offset, length, 0 });
+        }
+    }
 
     auto operator[](std::size_t column) -> entry_type& {
         switch(column) {
@@ -65,18 +159,24 @@ struct AlmanacEntry {
         return static_cast<entry_type>((*const_cast<AlmanacEntry*>(this))[column]);
     }
 
-    auto set(std::size_t column, std::int64_t value) -> void {
+    auto set(std::size_t column, AlmanacRange value) -> void {
         auto& entry = (*this)[column];
         entry.first = value;
         entry.second = true;
     }
 
-    auto value(std::size_t column) const -> std::int64_t {
+    auto value(std::size_t column) const -> AlmanacRange {
         return this->at(column).first;
     }
 
     auto check(std::size_t column) const -> bool {
         return this->at(column).second;
+    }
+
+    auto enable_until(std::size_t column) -> void {
+        for (std::size_t i = 0; i < std::min(7uz, column); ++i) {
+            (*this)[i].second = true;
+        }
     }
 };
 
@@ -86,53 +186,42 @@ struct SourceDestinationRange {
     std::int64_t range;
 };
 
-//       d       <- d = S_A - S_B
-//      / \
-//     |<->|
-//     v   v
-// |---A---|     <- S_A = o_A + l_A
-//     |---B---| <- S_B = o_B + l_B
-//
-// a   b  x
-// |---|--|      <- BX = d - b = (d - x) + (x - b)
-//     |--|---|                = x
-//     b     d
-//
-// where
-//     d = distance
-//     o = origin
-//     l = length
-//     S = size
+auto check_range_bound_and_update_almanac(SourceDestinationRange const& range, std::list<AlmanacEntry>& almanac, std::size_t const index) {
+    AlmanacRange source { range.source_start, range.range, 0 };
+    std::vector<typename std::list<AlmanacEntry>::iterator> invalid_entries{};
 
-// d == 0 => Fig. A
-// d < 0 => Fig. B
-// d > 0 => Fig. C
-//
-// |---A---|
-// |---B---|
-// (Fig. A)
-//
-// |---A---|
-//           |---B---|
-// (Fig. B)
-//
-//           |---A---|
-// |---B---|
-// (Fig. C)
+    for (auto almanac_entry = almanac.begin(); almanac_entry != almanac.end(); ++almanac_entry) {
+        auto slices = AlmanacRange::slices(almanac_entry->value(index), source);
+        bool inserted = false;
+        std::int64_t offset = 0;
 
-auto check_range_bound_and_update_almanac(SourceDestinationRange const& range, std::vector<AlmanacEntry>& almanac, std::size_t const index) {
-    for (auto& almanac_entry : almanac) {
-        std::int64_t range_min = range.source_start;
-        std::int64_t range_max = range.source_start + range.range;
-        if (range_min <= almanac_entry.value(index) && almanac_entry.value(index) < range_max) {
-            almanac_entry.set(index + 1, range.destination_start + (almanac_entry.value(index) - range_min));
-        } else if (!almanac_entry.check(index + 1)) {
-            almanac_entry.set(index + 1, almanac_entry.value(index));
+        for (auto const& [i, sub_slice] : slices | std::views::enumerate) {
+            if (sub_slice.length > 0) {
+                AlmanacEntry split_entry{ *almanac_entry, index, sub_slice.length, offset };
+
+                auto split_start = (sub_slice.overlap == 0)
+                    ? (!almanac_entry->check(index + 1))
+                        ? split_entry.value(index).start
+                        : almanac_entry->value(index + 1).start
+                    : range.destination_start + (sub_slice.start - source.start);
+
+                split_entry.set(index + 1, { split_start, sub_slice.length, 0 });
+                almanac.insert(almanac_entry, split_entry);
+
+                inserted = true;
+                offset += sub_slice.length;
+            }
         }
+
+        if (inserted) invalid_entries.push_back(almanac_entry);
+    }
+
+    for (auto const& invalid : invalid_entries) {
+        almanac.erase(invalid);
     }
 }
 
-auto parse_ids_singles(std::ranges::sized_range auto&& id_chunk, std::vector<AlmanacEntry>& almanac) -> void {
+auto parse_ids_singles(std::ranges::sized_range auto&& id_chunk, std::list<AlmanacEntry>& almanac) -> void {
     auto seeds_id_part = id_chunk
         | std::views::split(':')
         | std::views::drop(1)
@@ -142,9 +231,41 @@ auto parse_ids_singles(std::ranges::sized_range auto&& id_chunk, std::vector<Alm
                     | std::views::filter([](auto id) { return std::string_view{id} != ""; });
             });
 
-    for (auto&& id_numbers : seeds_id_part) {
-        for (auto const id : id_numbers) {
-            almanac.emplace_back(std::stoul(std::string{id.begin(), id.end()}));
+    for (auto id_numbers : seeds_id_part) {
+        for (auto id : id_numbers) {
+            almanac.emplace_back(AlmanacRange{ std::stoll(std::string{id.begin(), id.end()}), 1, 0 });
+        }
+    }
+}
+
+auto parse_ids_pairs(std::ranges::sized_range auto&& id_chunk, std::list<AlmanacEntry>& almanac) -> void {
+    auto seeds_id_part = id_chunk
+        | std::views::split(':')
+        | std::views::drop(1)
+        | std::views::transform([](auto id_numbers) {
+                return id_numbers
+                    | std::views::split(' ')
+                    | std::views::filter([](auto id) { return std::string_view{id} != ""; });
+            });
+
+
+    for (auto id_numbers : seeds_id_part) {
+        for (auto id_chunk : id_numbers | std::views::chunk(2)) {
+            // TODO: FIX STUPID VIEWS::CHUNK HACK
+            std::string start;
+            std::string length;
+            std::size_t i = 0;
+
+            for (auto number : id_chunk) {
+                if (i == 0) {
+                    start = std::string{ number.begin(), number.end() };
+                } else if (i == 1) {
+                    length = std::string{ number.begin(), number.end() };
+                }
+                ++i;
+            }
+
+            almanac.emplace_back(AlmanacRange{ std::stoll(start), std::stoll(length), 0 });
         }
     }
 }
@@ -154,7 +275,7 @@ auto parse_range_entry(std::ranges::sized_range auto&& range_chunk) -> SourceDes
         | std::views::split(' ')
         | std::views::filter([](auto number) { return std::string_view{number} != ""; })
         | std::views::transform([](auto number) { return std::string{number.begin(), number.end()}; })
-        | std::views::transform([](auto number) { return std::stoul(number); });
+        | std::views::transform([](auto number) { return std::stoll(number); });
 
     std::vector<std::int64_t> values{split_values.begin(), split_values.end()};
     return {
@@ -165,8 +286,8 @@ auto parse_range_entry(std::ranges::sized_range auto&& range_chunk) -> SourceDes
     return {};
 }
 
-auto parse_almanac_table(SolutionInput almanac_input, int id_type = IDChunkType::Single) -> std::vector<AlmanacEntry> {
-    std::vector<AlmanacEntry> almanac{};
+auto parse_almanac_table(SolutionInput almanac_input, int id_type = IDChunkType::Single) -> std::list<AlmanacEntry> {
+    std::list<AlmanacEntry> almanac{};
 
     auto almanac_sections = almanac_input
         | std::views::chunk_by([](auto lhs, auto rhs) {
@@ -180,7 +301,7 @@ auto parse_almanac_table(SolutionInput almanac_input, int id_type = IDChunkType:
         if (i == 0) {
             (id_type == IDChunkType::Single)
                 ? parse_ids_singles(section_chunk[0], almanac)
-                : void();
+                : parse_ids_pairs(section_chunk[0], almanac);
         } else {
             for (auto&& range_numbers : section_chunk | std::views::drop(1)) {
                 auto id_range = parse_range_entry(range_numbers);
@@ -193,14 +314,29 @@ auto parse_almanac_table(SolutionInput almanac_input, int id_type = IDChunkType:
 }
 
 auto AoC2023::day5_part1(SolutionInput input) -> SolutionReturn {
-    auto almanac = parse_almanac_table(input);
+    auto almanac = parse_almanac_table(input, IDChunkType::Single);
+
     return std::min_element(almanac.begin(), almanac.end(),
                             [](auto const& current, auto const& next) { 
-                                return current.location.first < next.location.first;
+                               auto current_end = current.location.first.start + current.location.first.length;
+                               auto next_end = next.location.first.start + next.location.first.length;
+
+                                return current.location.first.start < next.location.first.start
+                                    && current_end < next_end;
                             })
-        ->location.first;
+        ->location.first.start;
 }
 
 auto AoC2023::day5_part2(SolutionInput input) -> SolutionReturn {
-    return -1;
+    auto almanac = parse_almanac_table(input, IDChunkType::Pair);
+
+    return std::min_element(almanac.begin(), almanac.end(),
+                            [](auto const& current, auto const& next) { 
+                               auto current_end = current.location.first.start + current.location.first.length;
+                               auto next_end = next.location.first.start + next.location.first.length;
+
+                                return current.location.first.start < next.location.first.start
+                                    && current_end < next_end;
+                            })
+        ->location.first.start;
 }
