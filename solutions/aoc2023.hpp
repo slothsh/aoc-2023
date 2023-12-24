@@ -27,4 +27,8 @@ namespace AoC2023 {
     // Day 6
     auto day6_part1(SolutionInput input) -> SolutionReturn;
     auto day6_part2(SolutionInput input) -> SolutionReturn;
+
+    // Day 7
+    auto day7_part1(SolutionInput input) -> SolutionReturn;
+    auto day7_part2(SolutionInput input) -> SolutionReturn;
 } // END of namespace AoC2023
