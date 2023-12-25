@@ -1,6 +1,7 @@
 #pragma once
 
 #include <expected>
+#include <cstdint>
 #include <initializer_list>
 #include <unordered_map>
 #include <optional>
@@ -11,7 +12,7 @@
 
 class Solution {
 public:
-    using return_type = int;
+    using return_type = std::int64_t;
     using input_value_type = std::vector<std::string>;
     using input_type = std::add_const_t<input_value_type>&;
     using fn_type = return_type(*)(input_type);
