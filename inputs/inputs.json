@@ -98,6 +98,17 @@
                 "id": "test3",
                 "path": "./inputs/day8.test.3.txt"
             }
+        ],
+
+        "day9": [
+            {
+                "id": "main",
+                "path": "./inputs/day9.txt"
+            },
+            {
+                "id": "test1",
+                "path": "./inputs/day9.test.txt"
+            }
         ]
     }
 }
