@@ -32,5 +32,8 @@ const std::map<std::string_view, Solution> AocProgram::solutions {
     { "2023:day8:part2", Solution(2023, 8, 2, &AoC2023::day8_part2, AOC2023_DAY8_INPUTS_INITIALIZER, &parsing::parse_lines) },
 
     { "2023:day9:part1", Solution(2023, 9, 1, &AoC2023::day9_part1, AOC2023_DAY9_INPUTS_INITIALIZER, &parsing::parse_lines) },
-    { "2023:day9:part2", Solution(2023, 9, 2, &AoC2023::day9_part2, AOC2023_DAY9_INPUTS_INITIALIZER, &parsing::parse_lines) }
+    { "2023:day9:part2", Solution(2023, 9, 2, &AoC2023::day9_part2, AOC2023_DAY9_INPUTS_INITIALIZER, &parsing::parse_lines) },
+
+    { "2023:day10:part1", Solution(2023, 10, 1, &AoC2023::day10_part1, AOC2023_DAY10_INPUTS_INITIALIZER, &parsing::parse_lines) },
+    { "2023:day10:part2", Solution(2023, 10, 2, &AoC2023::day10_part2, AOC2023_DAY10_INPUTS_INITIALIZER, &parsing::parse_lines) }
 };
