@@ -1,7 +1,7 @@
 CXX=c++
 CXXFLAGS=-Wall -Wextra -Wpedantic -std=c++23 -O3
 INCLUDE=-I./src -I./solutions
-LIBS=$(shell pkg-config --libs fmt)
+LIBS=$(shell pkg-config --libs fmt argparse)
 
 BUILDPATH=./build
 OBJ_DIR=$(BUILDPATH)/obj
@@ -41,7 +41,7 @@ aoc: $(OBJ_FILES)
 $(OBJ_DIR)/%.o: ./solutions/2023/%.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -c -o $@ $<
 
-.PHONY: clean stubs
+.PHONY: clean stubs buildpath configure_stubs configure_inputs all aoc compile_flags
 
 clean:
 	rm -r ${BUILDPATH}

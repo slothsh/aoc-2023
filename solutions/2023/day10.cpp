@@ -441,16 +441,16 @@ auto AoC2023::day10_part2(SolutionInput input) -> SolutionReturn {
     }
 
     for (std::size_t i = boundaries.first.y; i <= static_cast<std::size_t>(boundaries.second.y); ++i) {
-        fmt::print("    ");
+        // fmt::print("    ");
         for (std::size_t j = boundaries.first.x; j <= static_cast<std::size_t>(boundaries.second.x); ++j) {
             auto const found_symbol = std::ranges::find_if(enclosed_tiles | std::views::all,
                                                            [i, j](auto const tile_position) {
                                                                return tile_position.y == static_cast<int>(i) && tile_position.x == static_cast<int>(j);
                                                            });
             auto const tile_symbol = (found_symbol != enclosed_tiles.end()) ? 'I' : static_cast<char>(pipe_map.at(i).at(j).pipe);
-            fmt::print("{}", tile_symbol);
+            // fmt::print("{}", tile_symbol);
         }
-        fmt::print("\n");
+        // fmt::print("\n");
     }
 
     return -1;

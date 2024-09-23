@@ -34,7 +34,7 @@ struct PolynomialSequence {
         auto differences = this->values
             | std::views::pairwise
             | std::views::transform([](auto const& pair) {
-                    return pair.second - pair.first;
+                    return std::get<1>(pair) - std::get<0>(pair);
                 });
 
         // https://en.wikipedia.org/wiki/Arithmetic_progression#Sum
